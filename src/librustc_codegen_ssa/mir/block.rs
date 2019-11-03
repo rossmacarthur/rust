@@ -529,8 +529,8 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
         };
 
         // Emit a panic or a no-op for `panic_if_uninhabited`.
-        // These are intrinsics that compile to panics so that we can get panics
-        // which mention the offending type, even from a const context.
+        // These are intrinsics that compile to panics so that we can get a message
+        // which mentions the offending type, even from a const context.
         #[derive(Debug, PartialEq)]
         enum PanicIntrinsic { IfUninhabited, IfNonZero };
         let panic_intrinsic = intrinsic.and_then(|i| match i {
