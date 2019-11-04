@@ -17,6 +17,9 @@ struct Foo {
 
 enum Bar {}
 
+#[allow(dead_code)]
+enum OneVariant { Variant(i32) }
+
 fn test_panic_msg<T>(op: impl (FnOnce() -> T) + panic::UnwindSafe, msg: &str) {
     let err = panic::catch_unwind(op).err();
     assert_eq!(
@@ -94,5 +97,10 @@ fn main() {
             || mem::zeroed::<(NonNull<u32>, u32, u32)>(),
             "attempted to zero-initialize non-zero type `(std::ptr::NonNull<u32>, u32, u32)`"
         );
+
+        // Some things that should work.
+        let _val = mem::zeroed::<bool>();
+        let _val = mem::zeroed::<OneVariant>();
+        let _val = mem::zeroed::<Option<&'static i32>>();
     }
 }
