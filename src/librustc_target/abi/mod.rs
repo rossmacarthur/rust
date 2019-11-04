@@ -1154,9 +1154,11 @@ impl<'a, Ty> TyLayout<'a, Ty> {
 
                 match inner.fields {
                     FieldPlacement::Union(..) => true, // An all-0 unit is fine.
-                    FieldPlacement::Array { count, .. } =>
-                        count == 0 || // 0-length arrays are always okay.
-                        inner.field(cx, 0).to_result()?.might_permit_zero_init(cx)?,
+                    FieldPlacement::Array { .. } =>
+                        // FIXME: The widely use smallvec 0.6 creates uninit arrays
+                        // with any element type, so let us not (yet) complain about that.
+                        // count == 0 || inner.field(cx, 0).to_result()?.might_permit_zero_init(cx)?
+                        true,
                     FieldPlacement::Arbitrary { ref offsets, .. } =>
                         // Check that all fields accept zero-init.
                         (0..offsets.len()).try_fold(true, |accu, idx|
