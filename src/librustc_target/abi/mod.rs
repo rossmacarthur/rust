@@ -1159,13 +1159,16 @@ impl<'a, Ty> TyLayout<'a, Ty> {
                         // with any element type, so let us not (yet) complain about that.
                         // count == 0 || inner.field(cx, 0).to_result()?.might_permit_zero_init(cx)?
                         true,
-                    FieldPlacement::Arbitrary { ref offsets, .. } =>
+                    FieldPlacement::Arbitrary { ref offsets, .. } => {
                         // Check that all fields accept zero-init.
-                        (0..offsets.len()).try_fold(true, |accu, idx|
-                            Ok(accu &&
-                              inner.field(cx, idx).to_result()?.might_permit_zero_init(cx)?
-                            )
-                        )?
+                        for idx in 0..offsets.len() {
+                            if !inner.field(cx, idx).to_result()?.might_permit_zero_init(cx)? {
+                                return Ok(false);
+                            }
+                        }
+                        // No bad field found, we are good.
+                        true
+                    }
                 }
             }
         };
