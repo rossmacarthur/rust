@@ -1132,7 +1132,7 @@ impl<'a, Ty> TyLayout<'a, Ty> {
         C: LayoutOf<Ty = Ty, TyLayout: MaybeResult<Self, Error = E>>
     {
         fn scalar_allows_zero(s: &Scalar) -> bool {
-            (*s.valid_range.start() <= 0) || // `&& *s.valid_range.end() >= 0` would be redundant
+            s.valid_range.contains(&0) ||
             (*s.valid_range.start() > *s.valid_range.end()) // wrap-around allows 0
         }
 
