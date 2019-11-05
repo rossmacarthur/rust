@@ -1126,7 +1126,7 @@ impl<'a, Ty> TyLayout<'a, Ty> {
     /// left entirely uninitialized.
     /// This is conservative: in doubt, it will answer `true`.
     pub fn might_permit_raw_init<C, E>(
-        &self,
+        self,
         cx: &C,
         zero: bool,
     ) -> Result<bool, E>
@@ -1156,30 +1156,39 @@ impl<'a, Ty> TyLayout<'a, Ty> {
             Abi::Vector { element: s, count } =>
                 *count == 0 || scalar_allows_raw_init(s),
             Abi::Aggregate { .. } => {
-                // For aggregates, recurse.
-                let inner = match self.variants {
-                    Variants::Multiple { .. } => // FIXME: could we be more precise here?
-                        return Ok(true),
-                    Variants::Single { index } => self.for_variant(&cx, index),
-                };
-
-                match inner.fields {
-                    FieldPlacement::Union(..) => true, // An all-0 unit is fine.
-                    FieldPlacement::Array { .. } =>
-                        // FIXME: The widely use smallvec 0.6 creates uninit arrays
-                        // with any element type, so let us not (yet) complain about that.
-                        // count == 0 ||
-                        // inner.field(cx, 0).to_result()?.might_permit_raw_init(cx, zero)?
-                        true,
-                    FieldPlacement::Arbitrary { ref offsets, .. } => {
-                        // Check that all fields accept zero-init.
-                        for idx in 0..offsets.len() {
-                            if !inner.field(cx, idx).to_result()?.might_permit_raw_init(cx, zero)? {
-                                return Ok(false);
+                match self.variants {
+                    Variants::Multiple { .. } =>
+                        if zero {
+                            // FIXME: could we identify the variant with discriminant 0, check that?
+                            true
+                        } else {
+                            // FIXME: This needs to have some sort of discriminant,
+                            // which cannot be undef. But for now we are conservative.
+                            true
+                        },
+                    Variants::Single { .. } => {
+                        // For aggregates, recurse.
+                        match self.fields {
+                            FieldPlacement::Union(..) => true, // An all-0 unit is fine.
+                            FieldPlacement::Array { .. } =>
+                                // FIXME: The widely use smallvec 0.6 creates uninit arrays
+                                // with any element type, so let us not (yet) complain about that.
+                                // count == 0 ||
+                                // self.field(cx, 0).to_result()?.might_permit_raw_init(cx, zero)?
+                                true,
+                            FieldPlacement::Arbitrary { ref offsets, .. } => {
+                                let mut res = true;
+                                // Check that all fields accept zero-init.
+                                for idx in 0..offsets.len() {
+                                    let field = self.field(cx, idx).to_result()?;
+                                    if !field.might_permit_raw_init(cx, zero)? {
+                                        res = false;
+                                        break;
+                                    }
+                                }
+                                res
                             }
                         }
-                        // No bad field found, we are good.
-                        true
                     }
                 }
             }
