@@ -73,29 +73,36 @@ fn main() {
         // Types that do not like zero-initialziation
         test_panic_msg(
             || mem::uninitialized::<fn()>(),
-            "attempted to zero-initialize non-zero type `fn()`"
+            "attempted to leave type `fn()` uninitialized, which is invalid"
         );
         test_panic_msg(
             || mem::zeroed::<fn()>(),
-            "attempted to zero-initialize non-zero type `fn()`"
+            "attempted to zero-initialize type `fn()`, which is invalid"
         );
 
         test_panic_msg(
             || mem::uninitialized::<*const dyn Send>(),
-            "attempted to zero-initialize non-zero type `*const dyn std::marker::Send`"
+            "attempted to leave type `*const dyn std::marker::Send` uninitialized, which is invalid"
         );
         test_panic_msg(
             || mem::zeroed::<*const dyn Send>(),
-            "attempted to zero-initialize non-zero type `*const dyn std::marker::Send`"
+            "attempted to zero-initialize type `*const dyn std::marker::Send`, which is invalid"
         );
 
         test_panic_msg(
             || mem::uninitialized::<(NonNull<u32>, u32, u32)>(),
-            "attempted to zero-initialize non-zero type `(std::ptr::NonNull<u32>, u32, u32)`"
+            "attempted to leave type `(std::ptr::NonNull<u32>, u32, u32)` uninitialized, \
+                which is invalid"
         );
         test_panic_msg(
             || mem::zeroed::<(NonNull<u32>, u32, u32)>(),
-            "attempted to zero-initialize non-zero type `(std::ptr::NonNull<u32>, u32, u32)`"
+            "attempted to zero-initialize type `(std::ptr::NonNull<u32>, u32, u32)`, \
+                which is invalid"
+        );
+
+        test_panic_msg(
+            || mem::uninitialized::<bool>(),
+            "attempted to leave type `bool` uninitialized, which is invalid"
         );
 
         // Some things that should work.

@@ -1120,34 +1120,45 @@ impl<'a, Ty> TyLayout<'a, Ty> {
         }
     }
 
-    /// Determines if zero-initializing this type might be okay.
+    /// Determines if this type permits "raw" initialization by just transmuting some
+    /// memory into an instance of `T`.
+    /// `zero` indicates if the memory is zero-initialized, or alternatively
+    /// left entirely uninitialized.
     /// This is conservative: in doubt, it will answer `true`.
-    pub fn might_permit_zero_init<C, E>(
+    pub fn might_permit_raw_init<C, E>(
         &self,
         cx: &C,
+        zero: bool,
     ) -> Result<bool, E>
     where
         Self: Copy,
         Ty: TyLayoutMethods<'a, C>,
         C: LayoutOf<Ty = Ty, TyLayout: MaybeResult<Self, Error = E>>
     {
-        fn scalar_allows_zero(s: &Scalar) -> bool {
-            s.valid_range.contains(&0) ||
-            (*s.valid_range.start() > *s.valid_range.end()) // wrap-around allows 0
-        }
+        let scalar_allows_raw_init = move |s: &Scalar| -> bool {
+            let range = &s.valid_range;
+            if zero {
+                // The range must contain 0.
+                range.contains(&0) ||
+                (*range.start() > *range.end()) // wrap-around allows 0
+            } else {
+                // The range must include all values.
+                *range.start() == range.end().wrapping_add(1)
+            }
+        };
 
         // Abi is the most informative here.
         let res = match &self.abi {
             Abi::Uninhabited => false, // definitely UB
-            Abi::Scalar(s) => scalar_allows_zero(s),
+            Abi::Scalar(s) => scalar_allows_raw_init(s),
             Abi::ScalarPair(s1, s2) =>
-                scalar_allows_zero(s1) && scalar_allows_zero(s2),
+                scalar_allows_raw_init(s1) && scalar_allows_raw_init(s2),
             Abi::Vector { element: s, count } =>
-                *count == 0 || scalar_allows_zero(s),
+                *count == 0 || scalar_allows_raw_init(s),
             Abi::Aggregate { .. } => {
                 // For aggregates, recurse.
                 let inner = match self.variants {
-                    Variants::Multiple { .. } => // FIXME: get variant with "0" discriminant.
+                    Variants::Multiple { .. } => // FIXME: could we be more precise here?
                         return Ok(true),
                     Variants::Single { index } => self.for_variant(&cx, index),
                 };
@@ -1157,12 +1168,13 @@ impl<'a, Ty> TyLayout<'a, Ty> {
                     FieldPlacement::Array { .. } =>
                         // FIXME: The widely use smallvec 0.6 creates uninit arrays
                         // with any element type, so let us not (yet) complain about that.
-                        // count == 0 || inner.field(cx, 0).to_result()?.might_permit_zero_init(cx)?
+                        // count == 0 ||
+                        // inner.field(cx, 0).to_result()?.might_permit_raw_init(cx, zero)?
                         true,
                     FieldPlacement::Arbitrary { ref offsets, .. } => {
                         // Check that all fields accept zero-init.
                         for idx in 0..offsets.len() {
-                            if !inner.field(cx, idx).to_result()?.might_permit_zero_init(cx)? {
+                            if !inner.field(cx, idx).to_result()?.might_permit_raw_init(cx, zero)? {
                                 return Ok(false);
                             }
                         }
@@ -1172,7 +1184,7 @@ impl<'a, Ty> TyLayout<'a, Ty> {
                 }
             }
         };
-        trace!("might_permit_zero_init({:?}) = {}", self.details, res);
+        trace!("might_permit_raw_init({:?}, zero={}) = {}", self.details, zero, res);
         Ok(res)
     }
 }
