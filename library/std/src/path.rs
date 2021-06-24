@@ -1618,6 +1618,42 @@ impl<'a> From<&'a PathBuf> for Cow<'a, Path> {
     }
 }
 
+#[stable(feature = "cow_from_os_str", since = "1.55.0")]
+impl<'a> From<&'a OsStr> for Cow<'a, Path> {
+    /// Creates a clone-on-write pointer from a reference to
+    /// [`OsStr`].
+    ///
+    /// This conversion does not clone or allocate.
+    #[inline]
+    fn from(s: &'a OsStr) -> Cow<'a, Path> {
+        Cow::Borrowed(Path::new(s))
+    }
+}
+
+#[stable(feature = "cow_from_os_str", since = "1.55.0")]
+impl<'a> From<OsString> for Cow<'a, Path> {
+    /// Creates a clone-on-write pointer from an owned
+    /// instance of [`OsString`].
+    ///
+    /// This conversion does not clone or allocate.
+    #[inline]
+    fn from(s: OsString) -> Cow<'a, Path> {
+        Cow::Owned(PathBuf::from(s))
+    }
+}
+
+#[stable(feature = "cow_from_os_str", since = "1.55.0")]
+impl<'a> From<&'a OsString> for Cow<'a, Path> {
+    /// Creates a clone-on-write pointer from a reference to
+    /// [`OsString`].
+    ///
+    /// This conversion does not clone or allocate.
+    #[inline]
+    fn from(s: &'a OsString) -> Cow<'a, Path> {
+        Cow::Borrowed(Path::new(s))
+    }
+}
+
 #[stable(feature = "pathbuf_from_cow_path", since = "1.28.0")]
 impl<'a> From<Cow<'a, Path>> for PathBuf {
     /// Converts a clone-on-write pointer to an owned path.
